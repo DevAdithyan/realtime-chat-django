@@ -27,6 +27,13 @@ DEBUG = False
 
 ALLOWED_HOSTS = ["*"]
 
+CSRF_TRUSTED_ORIGINS = [
+    "https://realtime-chat-django.onrender.com",
+]
+
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
+
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 
 # Application definition
