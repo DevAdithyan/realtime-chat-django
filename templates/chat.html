@@ -57,107 +57,108 @@
 </div>
 
 <script>
-    const roomName = "{{ room_name }}";
-    const receiverId = "{{ other_user.id }}";
-    const currentUserId = "{{ request.user.id }}";
+    document.addEventListener("DOMContentLoaded", function () {
 
-    const socket = new WebSocket(
-        'ws://' + window.location.host + '/ws/chat/' + roomName + '/'
-    );
+        const roomName = "{{ room_name }}";
+        const receiverId = "{{ other_user.id }}";
+        const currentUserId = "{{ request.user.id }}";
 
-    const chatBox = document.getElementById("chat-box");
-    const typingIndicator = document.getElementById("typing-indicator");
-    const input = document.getElementById("message-input");
+        const socket = new WebSocket(
+            (window.location.protocol === "https:" ? "wss://" : "ws://") +
+            window.location.host +
+            "/ws/chat/" + roomName + "/"
+        );
 
-    let typingTimeout;
+        const chatBox = document.getElementById("chat-box");
+        const typingIndicator = document.getElementById("typing-indicator");
+        const input = document.getElementById("message-input");
 
-    socket.onmessage = function(e) {
-        const data = JSON.parse(e.data);
+        let typingTimeout;
 
-        if (data.type === "typing" && data.user !== "{{ request.user.username }}") {
-            typingIndicator.style.display = "block";
-            chatBox.appendChild(typingIndicator);
-            chatBox.scrollTop = chatBox.scrollHeight;
-        }
+        socket.onmessage = function(e) {
+            const data = JSON.parse(e.data);
 
-        if (data.type === "stop_typing") {
-            typingIndicator.style.display = "none";
-        }
-
-        if (data.type === "message") {
-
-            typingIndicator.style.display = "none";  // hide typing when message arrives
-
-            const div = document.createElement("div");
-
-            if (data.sender_id == "{{ request.user.id }}") {
-                div.className = "chat-bubble sent";
-                div.innerHTML = `
-                    <div class="bubble-content">${data.message}</div>
-                    <div class="bubble-meta">
-                        <span>Just now</span>
-                        <span class="read-receipt">✓</span>
-                    </div>
-                `;
-            } else {
-                div.className = "chat-bubble received";
-                div.innerHTML = `
-                    <div class="bubble-content">${data.message}</div>
-                    <div class="bubble-meta">
-                        <span>Just now</span>
-                    </div>
-                `;
+            if (data.type === "typing" && data.user !== "{{ request.user.username }}") {
+                typingIndicator.style.display = "block";
+                chatBox.appendChild(typingIndicator);
+                chatBox.scrollTop = chatBox.scrollHeight;
             }
 
-            chatBox.appendChild(div);
-            chatBox.scrollTop = chatBox.scrollHeight;
-        }
+            if (data.type === "stop_typing") {
+                typingIndicator.style.display = "none";
+            }
 
-        if (data.type === "read_receipt") {
-            data.message_ids.forEach(function(id) {
-                const bubble = document.querySelector(`.chat-bubble.sent[data-id='${id}']`);
-                if (bubble) {
-                    const receipt = bubble.querySelector(".read-receipt");
-                    if (receipt) {
-                        receipt.innerText = "✓✓";
-                    }
+            if (data.type === "message") {
+
+                typingIndicator.style.display = "none";
+
+                const div = document.createElement("div");
+                div.setAttribute("data-id", data.message_id);
+
+                if (data.sender_id == currentUserId) {
+                    div.className = "chat-bubble sent";
+                    div.innerHTML = `
+                        <div class="bubble-content">${data.message}</div>
+                        <div class="bubble-meta">
+                            <span>Just now</span>
+                            <span class="read-receipt">✓</span>
+                        </div>
+                    `;
+                } else {
+                    div.className = "chat-bubble received";
+                    div.innerHTML = `
+                        <div class="bubble-content">${data.message}</div>
+                        <div class="bubble-meta">
+                            <span>Just now</span>
+                        </div>
+                    `;
                 }
-            });
+
+                chatBox.appendChild(div);
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
+
+            if (data.type === "read_receipt") {
+                data.message_ids.forEach(function(id) {
+                    const bubble = document.querySelector(`.chat-bubble.sent[data-id='${id}']`);
+                    if (bubble) {
+                        const receipt = bubble.querySelector(".read-receipt");
+                        if (receipt) {
+                            receipt.innerText = "✓✓";
+                        }
+                    }
+                });
+            }
+        };
+
+        function sendMessage() {
+            const message = input.value.trim();
+            if (!message) return;
+
+            socket.send(JSON.stringify({
+                type: "message",
+                message: message,
+                receiver_id: receiverId
+            }));
+
+            input.value = "";
+            socket.send(JSON.stringify({ type: "stop_typing" }));
         }
 
-    };
+        input.addEventListener("input", function() {
+            socket.send(JSON.stringify({ type: "typing" }));
 
-    function sendMessage() {
-        const message = input.value.trim();
-        if (!message) return;
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => {
+                socket.send(JSON.stringify({ type: "stop_typing" }));
+            }, 1000);
+        });
 
-        socket.send(JSON.stringify({
-            type: "message",
-            message: message,
-            receiver_id: receiverId
-        }));
+        input.addEventListener("keypress", function(e) {
+            if (e.key === "Enter") sendMessage();
+        });
 
-        input.value = "";
-        socket.send(JSON.stringify({ type: "stop_typing" }));
-    }
-
-    input.addEventListener("input", function() {
-        socket.send(JSON.stringify({ type: "typing" }));
-
-        clearTimeout(typingTimeout);
-        typingTimeout = setTimeout(() => {
-            socket.send(JSON.stringify({ type: "stop_typing" }));
-        }, 1000);
-    });
-
-    input.addEventListener("keypress", function(e) {
-        if (e.key === "Enter") sendMessage();
-    });
-
-    chatBox.scrollTop = chatBox.scrollHeight;
-
-    window.onload = function() {
-
+        // Mark unread messages as read
         let unreadMessageIds = [];
 
         document.querySelectorAll(".chat-bubble.received").forEach(function(bubble) {
@@ -175,8 +176,8 @@
         }
 
         chatBox.scrollTop = chatBox.scrollHeight;
-    };
 
+    });
 
 </script>
 
