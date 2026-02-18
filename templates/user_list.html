@@ -35,40 +35,60 @@
             {% endif %}
         </a>
     {% endfor %}
-
 </div>
 
 <script>
+document.addEventListener("DOMContentLoaded", function() {
+
+    // Use WSS if page is HTTPS
     const userSocket = new WebSocket(
-        'ws://' + window.location.host + '/ws/chat/{{ request.user.id }}/'
+        (window.location.protocol === "https:" ? "wss://" : "ws://") +
+        window.location.host +
+        '/ws/chat/{{ request.user.id }}/'
     );
 
+    // Track socket open state
+    let isSocketOpen = false;
+    userSocket.onopen = function() {
+        isSocketOpen = true;
+    };
+
     userSocket.onmessage = function(e) {
+        if (!isSocketOpen) return;
+
         const data = JSON.parse(e.data);
 
         if (data.type === "unread_update") {
-
             const userItem = document.querySelector(
                 `.user-item[data-user-id='${data.sender_id}']`
             );
 
             if (userItem) {
-
                 let badge = userItem.querySelector(".unread-badge");
 
-                // If badge doesn't exist → create one
                 if (!badge) {
+                    // Create new badge
                     badge = document.createElement("span");
                     badge.classList.add("unread-badge");
                     badge.innerText = 1;
                     userItem.appendChild(badge);
                 } else {
+                    // Increment existing badge
                     badge.innerText = parseInt(badge.innerText) + 1;
                 }
             }
         }
     };
-</script>
 
+    // Optional: reset badge on click (when opening chat)
+    document.querySelectorAll(".user-item").forEach(function(item) {
+        item.addEventListener("click", function() {
+            const badge = item.querySelector(".unread-badge");
+            if (badge) badge.remove();
+        });
+    });
+
+});
+</script>
 
 {% endblock %}
