@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h4 class="users-header">Messages</h4>
+
+<div class="users-card">
+    {% for item in users_with_unread %}
+        <a href="{% url 'chat' item.user.id %}" 
+            class="user-item"
+            data-user-id="{{ item.user.id }}">
+            <div class="user-info">
+                <div class="user-avatar">
+                    {{ item.user.username|slice:":1"|upper }}
+                </div>
+                <span class="user-name">
+                    {{ item.user.username }}
+                </span>
+
+                {% if item.unread_count > 0 %}
+                    <span class="unread-badge">
+                        {{ item.unread_count }}
+                    </span>
+                {% endif %}
+            </div>
+
+            {% if item.user.is_online %}
+                <div class="online-badge">
+                    <div class="online-dot"></div>
+                    Active now
+                </div>
+            {% else %}
+                <span class="last-seen">
+                    {{ item.user.last_seen|date:"M d, H:i" }}
+                </span>
+            {% endif %}
+        </a>
+    {% endfor %}
+
+</div>
+
+<script>
+    const userSocket = new WebSocket(
+        'ws://' + window.location.host + '/ws/chat/{{ request.user.id }}/'
+    );
+
+    userSocket.onmessage = function(e) {
+        const data = JSON.parse(e.data);
+
+        if (data.type === "unread_update") {
+
+            const userItem = document.querySelector(
+                `.user-item[data-user-id='${data.sender_id}']`
+            );
+
+            if (userItem) {
+
+                let badge = userItem.querySelector(".unread-badge");
+
+                // If badge doesn't exist → create one
+                if (!badge) {
+                    badge = document.createElement("span");
+                    badge.classList.add("unread-badge");
+                    badge.innerText = 1;
+                    userItem.appendChild(badge);
+                } else {
+                    badge.innerText = parseInt(badge.innerText) + 1;
+                }
+            }
+        }
+    };
+</script>
+
+
+{% endblock %}

@@ -1,0 +1,15 @@
+from django.contrib import admin
+from django.urls import path, include
+from django.shortcuts import redirect
+
+def root_redirect(request):
+    return redirect('login')
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+
+    path('', root_redirect),  # redirect base URL to login
+
+    path('accounts/', include('accounts.urls')),
+    path('chat/', include('chat.urls')),
+]
